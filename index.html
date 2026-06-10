@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DEFINIDO — Protocolo de 12 semanas para bajar tu % de grasa</title>
 <meta name="description" content="El sistema completo para definir sin gimnasio: keto, ayuno 16/8 y calistenia al fallo. Plan día a día, calculadora de macros y todos los ejercicios explicados. Gratis.">
+<link rel="canonical" href="https://definido.fit/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23161D18'/%3E%3Ctext x='32' y='46' font-family='Arial Black,Arial' font-size='40' font-weight='900' fill='%23FF5A1F' text-anchor='middle'%3ED%3C/text%3E%3C/svg%3E">
+<!-- Open Graph: vista previa al compartir por WhatsApp, Instagram, etc. -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://definido.fit/">
+<meta property="og:title" content="DEFINIDO — Baja tu % de grasa hasta que se note">
+<meta property="og:description" content="Keto + ayuno 16/8 + calistenia al fallo. El protocolo completo de 12 semanas, día a día, con calculadora de macros. Sin gimnasio. Gratis.">
+<meta property="og:image" content="https://definido.fit/og.png">
+<meta property="og:locale" content="es_ES">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DEFINIDO — Baja tu % de grasa hasta que se note">
+<meta name="twitter:description" content="Keto + ayuno 16/8 + calistenia al fallo. Protocolo de 12 semanas, gratis.">
+<meta name="twitter:image" content="https://definido.fit/og.png">
+<!-- ═══ ANALÍTICAS: crea tu propiedad en analytics.google.com y sustituye G-XXXXXXXXXX por tu ID (aparece 2 veces) ═══ -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Public+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -286,6 +302,34 @@ h2.display{font-size:clamp(2rem,6vw,3.2rem);text-transform:uppercase;margin-bott
 .rule h4{font-size:.98rem;text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:.04em;margin-bottom:4px}
 .rule p{font-size:.88rem;color:var(--muted)}
 
+/* ---------- captura email ---------- */
+.capture{
+  background:var(--ink);
+  border:2px solid var(--ink);
+  box-shadow:8px 8px 0 var(--signal);
+  padding:34px 28px;
+  color:var(--paper);
+}
+.capture h3{
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:800;
+  font-size:clamp(1.5rem,5vw,2.1rem);text-transform:uppercase;letter-spacing:-0.02em;
+  margin-bottom:8px;
+}
+.capture p{color:#9FB3A6;font-size:.95rem;max-width:38em}
+.capform{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+.capform input{
+  flex:1 1 240px;
+  font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:700;
+  padding:14px 14px;border:2px solid var(--paper);
+  background:var(--ink);color:var(--paper);
+}
+.capform input::placeholder{color:#5C675E}
+.capform input:focus-visible{outline:3px solid var(--signal);outline-offset:1px}
+.capmsg{margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:.82rem;min-height:1.2em}
+.capmsg.ok{color:#7FE0A8}
+.capmsg.err{color:var(--signal)}
+.capnote{margin-top:10px;font-size:.74rem;color:#5C675E}
+
 /* ---------- footer ---------- */
 footer{
   border-top:2px solid var(--ink);
@@ -436,6 +480,23 @@ footer p{max-width:48em;margin-top:10px}
   </div>
 </section>
 
+<!-- ============ CAPTURA EMAIL ============ -->
+<section id="protocolo">
+  <div class="wrap">
+    <div class="ficha"><span class="tag">Ficha 05</span><div class="line"></div></div>
+    <div class="capture">
+      <h3>No lo hagas solo<span style="color:var(--signal)">.</span></h3>
+      <p>Déjame tu correo y te aviso cuando salgan mejoras del protocolo: variantes del menú, nuevas progresiones de ejercicios y la hoja de seguimiento de 12 semanas. Cero ruido, solo el corte.</p>
+      <div class="capform">
+        <input type="email" id="capemail" placeholder="tu@correo.com" autocomplete="email" aria-label="Tu correo electrónico">
+        <button class="btn btn-primary" onclick="suscribir()">Apuntarme →</button>
+      </div>
+      <div class="capmsg" id="capmsg" role="status"></div>
+      <p class="capnote">Sin spam. Te das de baja cuando quieras, con un clic.</p>
+    </div>
+  </div>
+</section>
+
 <!-- ============ FOOTER ============ -->
 <footer>
   <div class="wrap">
@@ -446,6 +507,14 @@ footer p{max-width:48em;margin-top:10px}
 </footer>
 
 <script>
+/* ═══ FORMULARIO: crea una cuenta gratis en formspree.io, crea un form y pega aquí tu endpoint (ej: https://formspree.io/f/abcdwxyz) ═══ */
+const FORM_ENDPOINT = "";
+
+/* ---- almacenamiento seguro (funciona en definido.fit; se ignora si el navegador lo bloquea) ---- */
+function sGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function sSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+function semanaActual(){const d=new Date();return d.getFullYear()+"-S"+Math.floor((d-new Date(d.getFullYear(),0,1))/(7*864e5));}
+
 /* ================= DATOS ================= */
 const EJERCICIOS = {
   flexiones:{n:"Flexiones",m:"Pecho · hombro · tríceps",como:"Manos a la anchura de hombros, cuerpo recto como una tabla de la cabeza a los talones. Baja hasta que el pecho casi toque el suelo, sube explosivo.",error:"Cadera caída o levantada. Aprieta glúteo y abdomen todo el tiempo: la flexión también es una plancha.",prog:"Normales → pies elevados → con pausa abajo → arqueras → a una mano asistida."},
@@ -492,7 +561,16 @@ const TIPONOTAS = {
 };
 
 /* ================= SEMANA UI ================= */
-const completados = {};
+let completados = {};
+(function(){
+  const guardado = sGet("definido_dias");
+  if(guardado){
+    try{
+      const obj = JSON.parse(guardado);
+      if(obj.semana === semanaActual()) completados = obj.dias || {};
+    }catch(e){}
+  }
+})();
 let diaActivo = (new Date().getDay() + 6) % 7; // hoy
 
 const tabsEl = document.getElementById("daytabs");
@@ -542,6 +620,7 @@ function renderPanel(){
 
 function marcarDia(){
   completados[diaActivo] = !completados[diaActivo];
+  sSet("definido_dias", JSON.stringify({semana: semanaActual(), dias: completados}));
   renderTabs(); renderPanel();
 }
 
@@ -586,6 +665,59 @@ function calcular(){
     html += '<div class="calc-note">▸ Proteína es el número sagrado. Las kcal pueden bailar ±100; la proteína no.</div>';
   }
   out.innerHTML = html;
+  sSet("definido_calc", JSON.stringify({sexo:sexo, edad:edad, peso:peso, alt:alt, act:act, obj:obj||""}));
+}
+
+/* ---- restaurar la calculadora del visitante que vuelve ---- */
+(function(){
+  const guardado = sGet("definido_calc");
+  if(!guardado) return;
+  try{
+    const c = JSON.parse(guardado);
+    document.getElementById("sexo").value = c.sexo;
+    document.getElementById("edad").value = c.edad;
+    document.getElementById("peso").value = c.peso;
+    document.getElementById("altura").value = c.alt;
+    document.getElementById("actividad").value = c.act;
+    if(c.obj) document.getElementById("objetivo").value = c.obj;
+    calcular();
+  }catch(e){}
+})();
+
+/* ================= CAPTURA EMAIL ================= */
+function suscribir(){
+  const email = document.getElementById("capemail").value.trim();
+  const msg = document.getElementById("capmsg");
+  if(!email || email.indexOf("@") < 1 || email.indexOf(".") < 0){
+    msg.className = "capmsg err";
+    msg.textContent = "▸ Ese correo no parece válido. Revísalo.";
+    return;
+  }
+  if(!FORM_ENDPOINT){
+    msg.className = "capmsg err";
+    msg.textContent = "▸ Suscripción en mantenimiento. Vuelve a intentarlo más tarde.";
+    return;
+  }
+  msg.className = "capmsg";
+  msg.textContent = "▸ Enviando...";
+  fetch(FORM_ENDPOINT, {
+    method: "POST",
+    headers: {"Accept":"application/json","Content-Type":"application/json"},
+    body: JSON.stringify({email: email, origen: "definido.fit"})
+  }).then(function(r){
+    if(r.ok){
+      msg.className = "capmsg ok";
+      msg.textContent = "✓ Dentro. Bienvenido al protocolo.";
+      document.getElementById("capemail").value = "";
+      if(typeof gtag === "function") gtag("event","sign_up",{method:"email"});
+    } else {
+      msg.className = "capmsg err";
+      msg.textContent = "▸ Algo falló al enviar. Inténtalo de nuevo.";
+    }
+  }).catch(function(){
+    msg.className = "capmsg err";
+    msg.textContent = "▸ Sin conexión con el servidor. Inténtalo de nuevo.";
+  });
 }
 </script>
 </body>
