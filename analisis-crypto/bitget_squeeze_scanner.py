@@ -37,7 +37,31 @@ MACD_FAST, MACD_SLOW, MACD_SIG = 12, 26, 9
 RES_LOOKBACK = 26        # resistencia = máximo de las 26 semanas previas
 SQZ_LOOKBACK = 8         # ventana para "hubo squeeze recientemente"
 BW_RANK_WINDOW = 104     # percentil del ancho de banda sobre ~2 años
+SQZ_POINT_WINDOW = 12    # semanas donde buscar el punto de máxima compresión
 MIN_BARS = MACD_SLOW + MACD_SIG + 2
+
+# Bitget lista también acciones, ETFs y materias primas como perpetuos USDT.
+# El estudio es solo de cryptos, así que se excluyen.
+NON_CRYPTO = {
+    "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "GOOG", "NFLX", "COIN",
+    "MSTR", "PLTR", "ORCL", "AMD", "INTC", "HOOD", "CRCL", "AVGO", "MU", "TSM", "BABA",
+    "ARM", "SMCI", "UBER", "SHOP", "PYPL", "DIS", "JPM", "GME", "AMC", "MARA", "RIOT",
+    "CLSK", "IBIT", "SNOW", "ADBE", "CRM", "LLY", "UNH", "WMT", "COST", "BA", "XOM",
+    "QQQ", "SPY", "TQQQ", "SQQQ", "IWM", "DIA", "EWY", "EWJ", "GLD", "SLV", "SOXL",
+    "NVDL", "TSLL", "MSTU", "CONL", "XAU", "XAG", "XPT", "XPD", "COPPER", "CL", "NG",
+    "BRENT", "WTI", "USO", "PAXG", "XAUT", "CIRCLE", "FIG", "BMNR", "SBET", "GEMI",
+    "RDDT", "APP", "ASML", "QCOM", "TXN", "IBM", "CSCO", "V", "MA", "KO", "PEP", "NKE",
+}
+
+
+def is_non_crypto(ct):
+    if ct.get("baseCoin", "").upper() in NON_CRYPTO:
+        return True
+    for k, v in ct.items():
+        kl = k.lower()
+        if ("rwa" in kl or "stock" in kl) and str(v).lower() in ("yes", "true", "1"):
+            return True
+    return False
 
 
 # --------------------------------------------------------------------------
@@ -283,11 +307,20 @@ def analyse(symbol, candles, ticker, now_ms):
     sqz_now = sqz[i]
     sqz_recent = any(sqz[i - SQZ_LOOKBACK + 1:i + 1])
     sqz_fired = sqz_recent and not sqz_now
+    # duración del squeeze más reciente dentro de la ventana
     sqz_weeks = 0
-    k = i if sqz_now else j
+    k = i
+    while k > i - SQZ_LOOKBACK and not sqz[k]:
+        k -= 1
     while k >= 0 and sqz[k]:
         sqz_weeks += 1
         k -= 1
+
+    # punto de máxima compresión reciente: desde ahí se mide cuánto ha corrido ya
+    k_sq = min(range(i - SQZ_POINT_WINDOW + 1, i + 1), key=lambda q: bw[q] if bw[q] is not None else 1e9)
+    gain_since_sqz = c[i] / c[k_sq] - 1
+    peak_since_sqz = max(h[k_sq:i + 1])
+    drawdown_from_peak = c[i] / peak_since_sqz - 1
 
     bw_expanding = bw[i] > bw[j] and bw[i] > bw_min_recent * 1.10
     above_mid = c[i] > mid[i]
@@ -358,6 +391,8 @@ def analyse(symbol, candles, ticker, now_ms):
         b_parts["resistencia"] = lin(-dist_res, 0.20, 0.0, 0, 16)
     b_parts["expansion_alcista"] = 10 if (bw_expanding and above_mid) else (4 if above_mid else 0)
     b_parts["volumen"] = lin(vol_ratio, 0.8, 2.0, 0, 5)
+    # si ya corrió mucho desde el squeeze, la ruptura ya pasó: queda menos recorrido
+    b_parts["ya_disparada"] = lin(gain_since_sqz, 0.5, 1.5, 0, -25)
     breakout = clamp(sum(b_parts.values()), 0, 100)
 
     # ======================================================================
@@ -383,12 +418,16 @@ def analyse(symbol, candles, ticker, now_ms):
     elif pb > 1.15 or ext_mid > 0.30:
         penalty = -5
     c_parts["sobreextension"] = penalty
+    # mecha de rechazo: subió fuerte y devolvió buena parte
+    c_parts["rechazo_desde_max"] = lin(drawdown_from_peak, -0.15, -0.45, 0, -10)
     continuation = clamp(sum(c_parts.values()), 0, 100)
 
     total = round(0.5 * breakout + 0.5 * continuation, 1)
 
     # ---------------- Estado legible ----------------
-    if (above_upper_closed or broke_res_closed) and sqz_recent and macd_bull:
+    if gain_since_sqz >= 0.9:
+        estado = f"Ya disparada (+{gain_since_sqz * 100:.0f}% desde el squeeze)"
+    elif (above_upper_closed or broke_res_closed) and sqz_recent and macd_bull:
         estado = "Ruptura confirmada (cierre semanal)"
     elif (above_upper_now or broke_res) and (sqz_recent or bw_min_pct <= 25) and macd_bull:
         estado = "Rompiendo ahora (falta cierre semanal)"
@@ -447,6 +486,10 @@ def analyse(symbol, candles, ticker, now_ms):
             "cambio_4s_pct": round(chg_4w * 100, 2),
             "ext_sobre_media_pct": round(ext_mid * 100, 2),
             "progreso_semana": round(week_progress, 2),
+            "semanas_desde_compresion": i - k_sq,
+            "subida_desde_squeeze_pct": round(gain_since_sqz * 100, 1),
+            "retroceso_desde_max_pct": round(drawdown_from_peak * 100, 1),
+            "max_desde_squeeze": peak_since_sqz,
         },
         "parts_breakout": {k: round(v, 1) for k, v in b_parts.items()},
         "parts_continuacion": {k: round(v, 1) for k, v in c_parts.items()},
@@ -476,7 +519,14 @@ def main():
     print("Diagnóstico API (BTCUSDT):", file=sys.stderr)
     probe("BTCUSDT")
 
+    for ct in contracts:
+        if ct["symbol"] in ("AAPLUSDT", "BTCUSDT"):
+            print(f"  contrato {ct['symbol']}: {json.dumps(ct, ensure_ascii=False)[:900]}", file=sys.stderr)
+
     results, skipped, short, errors = [], 0, [], 0
+    excluded = [ct["symbol"] for ct in contracts if is_non_crypto(ct)]
+    contracts = [ct for ct in contracts if not is_non_crypto(ct)]
+    print(f"Excluidos {len(excluded)} no-crypto: {', '.join(excluded)}", file=sys.stderr)
     for idx, ct in enumerate(contracts, 1):
         sym = ct["symbol"]
         tk = tickers.get(sym, {})
@@ -508,8 +558,9 @@ def main():
             "bollinger": [BB_LEN, BB_MULT], "keltner": [KC_LEN, KC_MULT],
             "macd": [MACD_FAST, MACD_SLOW, MACD_SIG], "min_vol_24h_usdt": args.min_vol,
         },
-        "total_contratos": len(contracts),
+        "total_contratos": len(contracts) + len(excluded),
         "descartados_liquidez": skipped,
+        "excluidos_no_crypto": len(excluded),
         "analizados": len(results),
         "historial_insuficiente": len(short),
         "errores": errors,
