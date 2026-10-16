@@ -1,0 +1,1 @@
+{"generado_utc":"2026-10-16 11:38 UTC","exchange":"Bitget USDT-M perpetuos","temporalidad":"1W","parametros":{"bollinger":[20,2.0],"keltner":[20,1.5],"macd":[12,26,9],"min_vol_24h_usdt":1000000.0},"total_contratos":834,"descartados_liquidez":607,"analizados":0,"con_contexto_squeeze":0,"ranking":[],"resto":[]}
