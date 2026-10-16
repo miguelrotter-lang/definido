@@ -91,7 +91,8 @@ header { display: grid; gap: 14px; }
 
 section { display: grid; gap: 14px; min-width: 0; }
 .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
-.sort { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.sort { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
 .sort button {
   font: 600 12.5px var(--f-body); color: var(--ink-2); background: none; border: 0;
   padding: 5px 10px; border-radius: 6px; cursor: pointer;
@@ -176,10 +177,18 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
   <section>
     <div class="section-head">
       <h2>Ranking</h2>
-      <div class="sort" role="group" aria-label="Ordenar por">
+      <div class="controls">
+      <div class="sort" role="group" aria-label="Filtrar por estado" id="filters">
+        <button type="button" id="f-all" data-f="all" aria-pressed="true">Todas</button>
+        <button type="button" id="f-brk" data-f="conf now" aria-pressed="false">Rompiendo</button>
+        <button type="button" id="f-pre" data-f="pre comp" aria-pressed="false">Pre-ruptura</button>
+        <button type="button" id="f-late" data-f="late" aria-pressed="false">Ya disparadas</button>
+      </div>
+      <div class="sort" role="group" aria-label="Ordenar por" id="sorts">
         <button type="button" id="sort-total" data-k="score_total" aria-pressed="true">Total</button>
         <button type="button" id="sort-brk" data-k="score_breakout" aria-pressed="false">Ruptura</button>
         <button type="button" id="sort-cont" data-k="score_continuacion" aria-pressed="false">Continuación</button>
+      </div>
       </div>
     </div>
     <div class="table-box">
@@ -264,8 +273,11 @@ function renderMeta() {
 }
 
 let sortKey = "score_total";
+let filter = "all";
 function renderTable() {
-  const rows = [...DATA.ranking].sort((a, b) => b[sortKey] - a[sortKey]);
+  const rows = [...DATA.ranking]
+    .filter((x) => filter === "all" || filter.split(" ").includes(stateKey(x.estado)))
+    .sort((a, b) => b[sortKey] - a[sortKey]);
   const tb = document.getElementById("tbody");
   tb.innerHTML = "";
   rows.forEach((x, i) => {
@@ -274,7 +286,7 @@ function renderTable() {
     const name = x.series ? `<a class="row-link coin" href="#c-${x.coin}">${x.coin}</a>` : `<span class="coin">${x.coin}</span>`;
     const tr = el("tr");
     tr.innerHTML = `
-      <td class="num">${i + 1}</td>
+      <td class="num">${x.rank}</td>
       <td class="l">${name}</td>
       <td class="l num"><span class="meter" style="--w:${x.score_total}%"><i></i><b>${x.score_total.toFixed(0)}</b></span></td>
       <td class="num">${x.score_breakout.toFixed(0)}</td>
@@ -291,10 +303,17 @@ function renderTable() {
   });
 }
 
-document.querySelectorAll(".sort button").forEach((b) => {
+document.querySelectorAll("#sorts button").forEach((b) => {
   b.addEventListener("click", () => {
     sortKey = b.dataset.k;
-    document.querySelectorAll(".sort button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    document.querySelectorAll("#sorts button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    renderTable();
+  });
+});
+document.querySelectorAll("#filters button").forEach((b) => {
+  b.addEventListener("click", () => {
+    filter = b.dataset.f;
+    document.querySelectorAll("#filters button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
     renderTable();
   });
 });
@@ -315,17 +334,29 @@ function niceLogTicks(lo, hi, n = 4) {
 }
 
 function drawChart(box, x) {
-  const s = x.series;
-  const n = s.c.length;
-  const W = 720, PT = 10, PH = 230, GAP = 26, MH = 92, PB = 22, PL = 6, PR = 62;
+  box.innerHTML = "";
+  // se dibuja a tamaño real (1 unidad = 1 px) para que el texto no encoja en el móvil
+  const W = Math.max(300, Math.round(box.clientWidth || 720));
+  const PT = 10, PH = W < 500 ? 200 : 230, GAP = 26, MH = W < 500 ? 80 : 92, PB = 22, PL = 6, PR = 58;
+  const full = x.series;
+  const n = Math.min(full.c.length, Math.max(24, Math.floor((W - PL - PR) / 9)));
+  const off = full.c.length - n;
+  const s = {};
+  for (const k in full) s[k] = full[k].slice(off);
+  // MACD en % del precio de cada semana: mismos cruces y mismo paso por cero que el MACD
+  // clásico, pero legible aunque el precio haya cambiado mucho dentro de la ventana
+  for (const k of ["macd", "sig", "hist"]) s[k] = s[k].map((v, i) => (v == null ? null : (v / s.c[i]) * 100));
   const H = PT + PH + GAP + MH + PB;
-  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Gráfico semanal de ${x.coin} con Bollinger y MACD` });
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: "img", "aria-label": `Gráfico semanal de ${x.coin} con Bollinger y MACD` });
   const step = (W - PL - PR) / n;
   const cx = (i) => PL + step * (i + 0.5);
 
-  // escala precio (log)
+  // escala precio (log). Tras subidas enormes la banda inferior puede ser negativa:
+  // se recorta a un suelo positivo para poder dibujarla en escala logarítmica.
+  const floorP = Math.min(...s.l) * 0.7;
+  const lo = s.lo.map((v) => (v == null ? null : Math.max(v, floorP)));
   const vals = [];
-  for (let i = 0; i < n; i++) { vals.push(s.l[i], s.h[i]); if (s.up[i] != null) vals.push(s.up[i], s.lo[i]); }
+  for (let i = 0; i < n; i++) { vals.push(s.l[i], s.h[i]); if (s.up[i] != null) vals.push(s.up[i], lo[i]); }
   const res = x.metrics.resistencia_26s;
   vals.push(res);
   let pmin = Math.min(...vals.filter((v) => v > 0)), pmax = Math.max(...vals);
@@ -352,7 +383,8 @@ function drawChart(box, x) {
   const z = sv("text", { x: W - PR + 8, y: my(0) + 4, fill: "var(--muted)", "font-size": 11, "font-family": "var(--f-mono)" });
   z.textContent = "MACD 0"; grid.append(z);
   // fechas
-  for (let i = n - 1; i >= 0; i -= 13) {
+  const every = n > 40 ? 13 : 8;
+  for (let i = n - 1; i >= 0; i -= every) {
     const t = sv("text", { x: cx(i), y: H - 4, fill: "var(--muted)", "font-size": 11, "font-family": "var(--f-mono)", "text-anchor": "middle" });
     t.textContent = fmtDate(s.t[i]); grid.append(t);
   }
@@ -369,10 +401,11 @@ function drawChart(box, x) {
   const idx = [...Array(n).keys()].filter((i) => s.up[i] != null);
   if (idx.length) {
     const top = idx.map((i) => `${cx(i)},${py(s.up[i])}`).join(" ");
-    const bot = idx.slice().reverse().map((i) => `${cx(i)},${py(s.lo[i])}`).join(" ");
+    const bot = idx.slice().reverse().map((i) => `${cx(i)},${py(lo[i])}`).join(" ");
     svg.append(sv("polygon", { points: `${top} ${bot}`, fill: "var(--band)" }));
+    const band = { up: s.up, lo, mid: s.mid };
     for (const [k, w, dash] of [["up", 1.5, ""], ["lo", 1.5, ""], ["mid", 1.25, "4 3"]]) {
-      svg.append(sv("polyline", { points: idx.map((i) => `${cx(i)},${py(s[k][i])}`).join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": w, "stroke-dasharray": dash, "stroke-linejoin": "round", opacity: k === "mid" ? 0.8 : 1 }));
+      svg.append(sv("polyline", { points: idx.map((i) => `${cx(i)},${py(band[k][i])}`).join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": w, "stroke-dasharray": dash, "stroke-linejoin": "round", opacity: k === "mid" ? 0.8 : 1 }));
     }
   }
 
@@ -432,7 +465,7 @@ function drawChart(box, x) {
       <div><span>BB sup</span>${fmtPrice(s.up[i])}</div>
       <div><span>BB inf</span>${fmtPrice(s.lo[i])}</div>
       <div><span>%B</span>${pb}</div>
-      <div><span>Histograma</span>${s.hist[i] == null ? "–" : (s.hist[i] >= 0 ? "+" : "") + s.hist[i].toPrecision(3)}</div>
+      <div><span>MACD / señal</span>${s.macd[i] == null ? "–" : s.macd[i].toFixed(1) + "% / " + s.sig[i].toFixed(1) + "%"}</div>
       ${s.sqz[i] ? "<div><span>Squeeze TTM</span>activo</div>" : ""}`;
     tip.hidden = false;
     const px = cx(i) * (r.width / W);
@@ -463,7 +496,7 @@ function renderCards() {
         <div class="score"><span>Continuación</span><b>${x.score_continuacion.toFixed(0)}</b></div>
       </div>
       <div class="chart-key">
-        <span><i style="background:var(--accent)"></i>Bollinger 20, 2 · MACD</span>
+        <span><i style="background:var(--accent)"></i>Bollinger 20, 2 · MACD (% del precio)</span>
         <span><i style="background:var(--signal)"></i>Señal MACD</span>
         <span><i style="background:var(--amber);height:5px"></i>Squeeze TTM</span>
         <span><i style="background:var(--ink-2)"></i>Máximo 26 semanas</span>
@@ -488,4 +521,17 @@ function renderCards() {
 renderMeta();
 renderTable();
 renderCards();
+
+let lastW = window.innerWidth, rT;
+window.addEventListener("resize", () => {
+  clearTimeout(rT);
+  rT = setTimeout(() => {
+    if (Math.abs(window.innerWidth - lastW) < 24) return;
+    lastW = window.innerWidth;
+    document.querySelectorAll(".card").forEach((card) => {
+      const x = DATA.ranking.find((r) => `c-${r.coin}` === card.id);
+      if (x) drawChart(card.querySelector(".chart-box"), x);
+    });
+  }, 150);
+});
 </script>
