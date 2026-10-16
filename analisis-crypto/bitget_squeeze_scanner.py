@@ -436,9 +436,9 @@ def analyse(symbol, candles, ticker, now_ms):
         estado = "Ruptura confirmada (cierre semanal)"
     elif (above_upper_now or broke_res) and (sqz_recent or bw_min_pct <= 25) and macd_bull:
         estado = "Rompiendo ahora (falta cierre semanal)"
-    elif (sqz_now or bw_min_pct <= 20) and pb >= 0.6 and macd_rising:
+    elif (sqz_now or bw_min_pct <= 20) and pb >= 0.6 and macd_rising and gain_since_sqz < 0.3:
         estado = "Pre-ruptura (squeeze cargado)"
-    elif sqz_now or bw_min_pct <= 20:
+    elif (sqz_now or bw_min_pct <= 20) and gain_since_sqz < 0.3:
         estado = "Compresión (dirección sin definir)"
     elif above_mid and macd_bull:
         estado = "Tendencia alcista"
