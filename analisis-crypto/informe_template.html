@@ -1,0 +1,489 @@
+<title>Squeeze semanal Bitget</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: una columna de lectura; tabla de ranking arriba, fichas con gráfico semanal debajo */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --ink: #0f1620;
+  --ink-2: #48525f;
+  --muted: #727c8a;
+  --line: #e2e6eb;
+  --grid: #edf0f3;
+  --accent: #2a78d6;
+  --band: rgba(42, 120, 214, 0.10);
+  --signal: #eb6834;
+  --up: #14936a;
+  --down: #d24b43;
+  --amber: #b77900;
+  --up-soft: rgba(20, 147, 106, 0.12);
+  --accent-soft: rgba(42, 120, 214, 0.12);
+  --amber-soft: rgba(183, 121, 0, 0.13);
+  --muted-soft: rgba(114, 124, 138, 0.13);
+  --down-soft: rgba(210, 75, 67, 0.11);
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1116; --surface: #151a21; --ink: #e8edf3; --ink-2: #b3bcc8; --muted: #8590a0;
+    --line: #252c36; --grid: #1d232c; --accent: #4a92ea; --band: rgba(74, 146, 234, 0.13);
+    --signal: #e0672f; --up: #2fb487; --down: #e5675f; --amber: #d9a03a;
+    --up-soft: rgba(47, 180, 135, 0.16); --accent-soft: rgba(74, 146, 234, 0.16);
+    --amber-soft: rgba(217, 160, 58, 0.16); --muted-soft: rgba(133, 144, 160, 0.16);
+    --down-soft: rgba(229, 103, 95, 0.15);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1116; --surface: #151a21; --ink: #e8edf3; --ink-2: #b3bcc8; --muted: #8590a0;
+  --line: #252c36; --grid: #1d232c; --accent: #4a92ea; --band: rgba(74, 146, 234, 0.13);
+  --signal: #e0672f; --up: #2fb487; --down: #e5675f; --amber: #d9a03a;
+  --up-soft: rgba(47, 180, 135, 0.16); --accent-soft: rgba(74, 146, 234, 0.16);
+  --amber-soft: rgba(217, 160, 58, 0.16); --muted-soft: rgba(133, 144, 160, 0.16);
+  --down-soft: rgba(229, 103, 95, 0.15);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body);
+  font-size: 15px; line-height: 1.5;
+}
+.wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+  display: grid; gap: 36px;
+}
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 800; font-stretch: 78%; letter-spacing: -0.01em; line-height: 1.05; }
+h2 { font-size: 20px; font-weight: 700; font-stretch: 85%; }
+h3 { font-size: 22px; font-weight: 800; font-stretch: 80%; }
+p { margin: 0; max-width: 68ch; }
+.mono, .num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+header { display: grid; gap: 14px; }
+.lede { color: var(--ink-2); font-size: 16px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-family: var(--f-mono); font-size: 12.5px; color: var(--ink-2); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.legend-states { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-size: 12px; font-weight: 600; padding: 3px 9px 3px 8px; border-radius: 999px;
+  background: var(--muted-soft); color: var(--ink-2);
+}
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill[data-s="conf"] { background: var(--up-soft); color: var(--up); }
+.pill[data-s="now"] { background: var(--accent-soft); color: var(--accent); }
+.pill[data-s="pre"] { background: var(--amber-soft); color: var(--amber); }
+.pill[data-s="comp"] { background: var(--muted-soft); color: var(--ink-2); }
+.pill[data-s="trend"] { background: var(--muted-soft); color: var(--ink-2); }
+.pill[data-s="neutral"] { background: var(--down-soft); color: var(--down); }
+
+section { display: grid; gap: 14px; min-width: 0; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.sort { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.sort button {
+  font: 600 12.5px var(--f-body); color: var(--ink-2); background: none; border: 0;
+  padding: 5px 10px; border-radius: 6px; cursor: pointer;
+}
+.sort button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.sort button:focus-visible, a:focus-visible, .row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.table-box { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 820px; font-size: 13.5px; }
+th, td { padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th { font: 600 11px var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--surface); position: sticky; top: 0; }
+td.l, th.l { text-align: left; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--bg); }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.coin { font-weight: 700; font-family: var(--f-display); font-stretch: 85%; font-size: 15px; }
+.row-link { color: inherit; text-decoration: none; }
+.pos { color: var(--up); } .neg { color: var(--down); }
+.meter { display: inline-grid; grid-template-columns: 56px auto; align-items: center; gap: 8px; }
+.meter i { display: block; height: 6px; border-radius: 3px; background: var(--grid); position: relative; overflow: hidden; }
+.meter i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--w); background: var(--accent); border-radius: 3px; }
+.meter b { font-weight: 600; min-width: 34px; text-align: right; }
+
+.cards { display: grid; gap: 18px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px; display: grid; gap: 14px; min-width: 0; scroll-margin-top: 16px;
+}
+.card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.rank { font: 600 13px var(--f-mono); color: var(--muted); }
+.price { font: 600 14px var(--f-mono); color: var(--ink-2); }
+.scores { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.score { display: grid; gap: 2px; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
+.score span { font-size: 11.5px; color: var(--muted); }
+.score b { font: 600 22px var(--f-mono); font-variant-numeric: tabular-nums; }
+.score.main b { color: var(--accent); }
+.chart-box { position: relative; min-width: 0; }
+.chart-box svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+.chart-key span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-key i { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 3; min-width: 150px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; font: 12px/1.45 var(--f-mono); color: var(--ink);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.tip div { display: flex; justify-content: space-between; gap: 14px; }
+.tip span { color: var(--muted); }
+.why { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.why h4 { margin: 0 0 6px; font: 600 11.5px var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.why ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
+.why ul.risk li::marker { color: var(--down); }
+.why ul.plus li::marker { color: var(--up); }
+.levels { display: flex; flex-wrap: wrap; gap: 6px 20px; font: 12.5px var(--f-mono); color: var(--ink-2); }
+.levels b { color: var(--ink); font-weight: 600; }
+
+.method { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.method > div { display: grid; gap: 8px; align-content: start; }
+.method ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--ink-2); font-size: 14px; }
+.note { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
+
+@media (max-width: 640px) {
+  .why, .method { grid-template-columns: 1fr; }
+  .card { padding: 14px; }
+  .score b { font-size: 19px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Bitget · Futuros USDT-M · Velas semanales</div>
+    <h1>Squeeze semanal Bitget</h1>
+    <p class="lede">Monedas con las Bollinger semanales comprimidas que empiezan a romper al alza, ordenadas por probabilidad de ruptura y de continuación alcista según Bollinger (20, 2) y MACD (12, 26, 9).</p>
+    <div class="meta" id="meta"></div>
+    <div class="legend-states" id="states"></div>
+  </header>
+
+  <section>
+    <div class="section-head">
+      <h2>Ranking</h2>
+      <div class="sort" role="group" aria-label="Ordenar por">
+        <button type="button" id="sort-total" data-k="score_total" aria-pressed="true">Total</button>
+        <button type="button" id="sort-brk" data-k="score_breakout" aria-pressed="false">Ruptura</button>
+        <button type="button" id="sort-cont" data-k="score_continuacion" aria-pressed="false">Continuación</button>
+      </div>
+    </div>
+    <div class="table-box">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th class="l">Moneda</th><th class="l">Total</th><th>Ruptura</th><th>Contin.</th>
+            <th class="l">Estado</th><th>%B</th><th>Ancho BB pctl</th><th>MACD</th><th>vs máx 26s</th><th>4 sem</th><th>Vol 24h</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Fichas de los mejor puntuados</h2></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section>
+    <h2>Cómo se puntúa</h2>
+    <div class="method">
+      <div>
+        <h4 class="eyebrow">Ruptura · 0–100</h4>
+        <ul>
+          <li>Compresión: percentil más bajo del ancho de Bollinger en las últimas 8 semanas, comparado con 2 años (hasta 30).</li>
+          <li>Squeeze TTM: Bollinger dentro de Keltner (20, 1.5 ATR), activo o recién liberado (hasta 15).</li>
+          <li>Posición en las bandas: %B cerca o por encima de la banda superior (hasta 20).</li>
+          <li>Resistencia: distancia al máximo de las 26 semanas previas, o rotura (hasta 20).</li>
+          <li>Bandas abriéndose con el precio sobre la media de 20 (hasta 10) y volumen (hasta 5).</li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="eyebrow">Continuación · 0–100</h4>
+        <ul>
+          <li>MACD sobre señal, histograma positivo y creciendo, pendiente del MACD (hasta 47).</li>
+          <li>MACD sobre cero o cruzándolo, cruce alcista reciente (hasta 18).</li>
+          <li>Precio sobre la media de 20 y media girando al alza (hasta 20).</li>
+          <li>Mínimos crecientes, vela semanal fuerte y volumen (hasta 17).</li>
+          <li>Penalización si el precio está muy estirado sobre la media (−5 a −12).</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">La puntuación total es la media de ambas. No es una probabilidad estadística calibrada: ordena configuraciones técnicas de mejor a peor. La vela de esta semana sigue abierta, así que toda ruptura necesita el cierre semanal para confirmarse. Esto no es asesoramiento financiero; en futuros apalancados, define invalidación (por ejemplo, cierre semanal bajo la media de 20) antes de entrar.</p>
+  </section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+const STATES = [
+  ["Ruptura confirmada", "conf"], ["Rompiendo ahora", "now"], ["Pre-ruptura", "pre"],
+  ["Compresión", "comp"], ["Tendencia alcista", "trend"], ["Neutral", "neutral"],
+];
+const stateKey = (s) => (STATES.find(([p]) => s.startsWith(p)) || [0, "comp"])[1];
+const el = (tag, attrs = {}, html = "") => {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (html) e.innerHTML = html;
+  return e;
+};
+const fmtPrice = (v) => {
+  if (v == null) return "–";
+  const a = Math.abs(v);
+  const d = a >= 1000 ? 0 : a >= 100 ? 1 : a >= 1 ? 3 : a >= 0.01 ? 4 : 6;
+  return v.toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
+};
+const fmtVol = (v) => v >= 1e9 ? (v / 1e9).toFixed(1) + "B" : v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : (v / 1e3).toFixed(0) + "K";
+const signed = (v, d = 1) => (v > 0 ? "+" : "") + v.toFixed(d) + "%";
+const fmtDate = (ms) => new Date(ms).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "2-digit", timeZone: "UTC" });
+
+function renderMeta() {
+  const m = document.getElementById("meta");
+  m.innerHTML = `
+    <span>Datos <b>${DATA.generado_utc}</b></span>
+    <span>Contratos <b>${DATA.total_contratos}</b></span>
+    <span>Analizados <b>${DATA.analizados}</b> (vol 24h ≥ ${fmtVol(DATA.parametros.min_vol_24h_usdt)})</span>
+    <span>Con squeeze reciente <b>${DATA.con_contexto_squeeze}</b></span>`;
+  const s = document.getElementById("states");
+  for (const [label, k] of STATES.slice(0, 5)) s.append(el("span", { class: "pill", "data-s": k }, label));
+}
+
+let sortKey = "score_total";
+function renderTable() {
+  const rows = [...DATA.ranking].sort((a, b) => b[sortKey] - a[sortKey]);
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = "";
+  rows.forEach((x, i) => {
+    const m = x.metrics;
+    const macd = `${m.macd_sobre_senal ? "▲ sobre señal" : "▼ bajo señal"}${m.macd_sobre_cero ? " · >0" : " · <0"}`;
+    const name = x.series ? `<a class="row-link coin" href="#c-${x.coin}">${x.coin}</a>` : `<span class="coin">${x.coin}</span>`;
+    const tr = el("tr");
+    tr.innerHTML = `
+      <td class="num">${i + 1}</td>
+      <td class="l">${name}</td>
+      <td class="l num"><span class="meter" style="--w:${x.score_total}%"><i></i><b>${x.score_total.toFixed(0)}</b></span></td>
+      <td class="num">${x.score_breakout.toFixed(0)}</td>
+      <td class="num">${x.score_continuacion.toFixed(0)}</td>
+      <td class="l"><span class="pill" data-s="${stateKey(x.estado)}">${x.estado}</span></td>
+      <td class="num">${m.pct_b.toFixed(2)}</td>
+      <td class="num">${m.bandwidth_min_8s_percentil.toFixed(0)}</td>
+      <td class="num ${m.macd_sobre_senal ? "pos" : "neg"}">${macd}</td>
+      <td class="num ${m.dist_resistencia_pct >= 0 ? "pos" : ""}">${signed(m.dist_resistencia_pct)}</td>
+      <td class="num ${m.cambio_4s_pct >= 0 ? "pos" : "neg"}">${signed(m.cambio_4s_pct, 0)}</td>
+      <td class="num">${fmtVol(x.vol24h_usdt)}</td>`;
+    tb.append(tr);
+  });
+}
+
+document.querySelectorAll(".sort button").forEach((b) => {
+  b.addEventListener("click", () => {
+    sortKey = b.dataset.k;
+    document.querySelectorAll(".sort button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    renderTable();
+  });
+});
+
+// ---------- Gráfico semanal: velas + Bollinger (escala log) y MACD ----------
+const NS = "http://www.w3.org/2000/svg";
+const sv = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+
+function niceLogTicks(lo, hi, n = 4) {
+  const out = [];
+  const a = Math.log(lo), b = Math.log(hi);
+  for (let i = 0; i < n; i++) {
+    const v = Math.exp(a + (b - a) * (i + 0.5) / n);
+    const p = Math.pow(10, Math.floor(Math.log10(v)) - 1);
+    out.push(Math.round(v / p) * p);
+  }
+  return [...new Set(out)];
+}
+
+function drawChart(box, x) {
+  const s = x.series;
+  const n = s.c.length;
+  const W = 720, PT = 10, PH = 230, GAP = 26, MH = 92, PB = 22, PL = 6, PR = 62;
+  const H = PT + PH + GAP + MH + PB;
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Gráfico semanal de ${x.coin} con Bollinger y MACD` });
+  const step = (W - PL - PR) / n;
+  const cx = (i) => PL + step * (i + 0.5);
+
+  // escala precio (log)
+  const vals = [];
+  for (let i = 0; i < n; i++) { vals.push(s.l[i], s.h[i]); if (s.up[i] != null) vals.push(s.up[i], s.lo[i]); }
+  const res = x.metrics.resistencia_26s;
+  vals.push(res);
+  let pmin = Math.min(...vals.filter((v) => v > 0)), pmax = Math.max(...vals);
+  const pad = (Math.log(pmax) - Math.log(pmin)) * 0.04;
+  const L0 = Math.log(pmin) - pad, L1 = Math.log(pmax) + pad;
+  const py = (v) => PT + PH - (Math.log(v) - L0) / (L1 - L0) * PH;
+
+  // escala MACD (lineal, centrada en cero)
+  const mv = [];
+  for (let i = 0; i < n; i++) for (const k of ["macd", "sig", "hist"]) if (s[k][i] != null) mv.push(s[k][i]);
+  const mabs = Math.max(...mv.map(Math.abs), 1e-12) * 1.08;
+  const M0 = PT + PH + GAP;
+  const my = (v) => M0 + MH / 2 - (v / mabs) * (MH / 2);
+
+  const g = (cls) => sv("g", cls ? { class: cls } : {});
+  const grid = g();
+  for (const t of niceLogTicks(Math.exp(L0), Math.exp(L1))) {
+    const y = py(t);
+    grid.append(sv("line", { x1: PL, x2: W - PR, y1: y, y2: y, stroke: "var(--grid)", "stroke-width": 1 }));
+    const tx = sv("text", { x: W - PR + 8, y: y + 4, fill: "var(--muted)", "font-size": 11, "font-family": "var(--f-mono)" });
+    tx.textContent = fmtPrice(t); grid.append(tx);
+  }
+  grid.append(sv("line", { x1: PL, x2: W - PR, y1: my(0), y2: my(0), stroke: "var(--line)", "stroke-width": 1 }));
+  const z = sv("text", { x: W - PR + 8, y: my(0) + 4, fill: "var(--muted)", "font-size": 11, "font-family": "var(--f-mono)" });
+  z.textContent = "MACD 0"; grid.append(z);
+  // fechas
+  for (let i = n - 1; i >= 0; i -= 13) {
+    const t = sv("text", { x: cx(i), y: H - 4, fill: "var(--muted)", "font-size": 11, "font-family": "var(--f-mono)", "text-anchor": "middle" });
+    t.textContent = fmtDate(s.t[i]); grid.append(t);
+  }
+  svg.append(grid);
+
+  // zonas de squeeze TTM (fondo)
+  const sq = g();
+  for (let i = 0; i < n; i++) if (s.sqz[i]) {
+    sq.append(sv("rect", { x: cx(i) - step / 2, y: PT + PH - 5, width: step, height: 5, fill: "var(--amber)", opacity: 0.85 }));
+  }
+  svg.append(sq);
+
+  // banda de Bollinger
+  const idx = [...Array(n).keys()].filter((i) => s.up[i] != null);
+  if (idx.length) {
+    const top = idx.map((i) => `${cx(i)},${py(s.up[i])}`).join(" ");
+    const bot = idx.slice().reverse().map((i) => `${cx(i)},${py(s.lo[i])}`).join(" ");
+    svg.append(sv("polygon", { points: `${top} ${bot}`, fill: "var(--band)" }));
+    for (const [k, w, dash] of [["up", 1.5, ""], ["lo", 1.5, ""], ["mid", 1.25, "4 3"]]) {
+      svg.append(sv("polyline", { points: idx.map((i) => `${cx(i)},${py(s[k][i])}`).join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": w, "stroke-dasharray": dash, "stroke-linejoin": "round", opacity: k === "mid" ? 0.8 : 1 }));
+    }
+  }
+
+  // resistencia 26 semanas
+  const ry = py(res);
+  svg.append(sv("line", { x1: PL, x2: W - PR, y1: ry, y2: ry, stroke: "var(--ink-2)", "stroke-width": 1, opacity: 0.55 }));
+  const rl = sv("text", { x: PL + 4, y: ry - 5, fill: "var(--ink-2)", "font-size": 11, "font-family": "var(--f-mono)" });
+  rl.textContent = `Máx 26s ${fmtPrice(res)}`; svg.append(rl);
+
+  // velas
+  const bw = Math.max(2, Math.min(9, step * 0.62));
+  const cg = g();
+  for (let i = 0; i < n; i++) {
+    const upC = s.c[i] >= s.o[i];
+    const col = upC ? "var(--up)" : "var(--down)";
+    const live = i === n - 1;
+    cg.append(sv("line", { x1: cx(i), x2: cx(i), y1: py(s.h[i]), y2: py(s.l[i]), stroke: col, "stroke-width": 1, opacity: live ? 0.6 : 1 }));
+    const y1 = py(Math.max(s.o[i], s.c[i])), y2 = py(Math.min(s.o[i], s.c[i]));
+    cg.append(sv("rect", { x: cx(i) - bw / 2, y: y1, width: bw, height: Math.max(1, y2 - y1), fill: col, rx: 1, opacity: live ? 0.6 : 1 }));
+  }
+  svg.append(cg);
+
+  // MACD
+  const hb = Math.max(2, Math.min(8, step * 0.6));
+  const hg = g();
+  for (let i = 0; i < n; i++) {
+    const v = s.hist[i]; if (v == null) continue;
+    const y0 = my(0), y = my(v);
+    hg.append(sv("rect", { x: cx(i) - hb / 2, y: Math.min(y, y0), width: hb, height: Math.max(1, Math.abs(y - y0)), fill: v >= 0 ? "var(--up)" : "var(--down)", opacity: 0.55 }));
+  }
+  svg.append(hg);
+  for (const [k, col] of [["macd", "var(--accent)"], ["sig", "var(--signal)"]]) {
+    const pts = [...Array(n).keys()].filter((i) => s[k][i] != null).map((i) => `${cx(i)},${my(s[k][i])}`).join(" ");
+    svg.append(sv("polyline", { points: pts, fill: "none", stroke: col, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  }
+  const last = n - 1;
+  svg.append(sv("circle", { cx: cx(last), cy: py(s.c[last]), r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 }));
+
+  // hover
+  const cross = sv("line", { y1: PT, y2: M0 + MH, stroke: "var(--muted)", "stroke-width": 1, visibility: "hidden" });
+  svg.append(cross);
+  const hit = sv("rect", { x: PL, y: PT, width: W - PL - PR, height: M0 + MH - PT, fill: "transparent" });
+  svg.append(hit);
+  box.append(svg);
+  const tip = el("div", { class: "tip", hidden: "" });
+  box.append(tip);
+
+  const show = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) * (W / r.width);
+    const i = Math.max(0, Math.min(n - 1, Math.floor((sx - PL) / step)));
+    cross.setAttribute("x1", cx(i)); cross.setAttribute("x2", cx(i)); cross.setAttribute("visibility", "visible");
+    const pb = s.up[i] != null ? ((s.c[i] - s.lo[i]) / (s.up[i] - s.lo[i])).toFixed(2) : "–";
+    tip.innerHTML = `<div><b>${fmtDate(s.t[i])}${i === n - 1 ? " · en curso" : ""}</b></div>
+      <div><span>Cierre</span>${fmtPrice(s.c[i])}</div>
+      <div><span>Máx / Mín</span>${fmtPrice(s.h[i])} / ${fmtPrice(s.l[i])}</div>
+      <div><span>BB sup</span>${fmtPrice(s.up[i])}</div>
+      <div><span>BB inf</span>${fmtPrice(s.lo[i])}</div>
+      <div><span>%B</span>${pb}</div>
+      <div><span>Histograma</span>${s.hist[i] == null ? "–" : (s.hist[i] >= 0 ? "+" : "") + s.hist[i].toPrecision(3)}</div>
+      ${s.sqz[i] ? "<div><span>Squeeze TTM</span>activo</div>" : ""}`;
+    tip.hidden = false;
+    const px = cx(i) * (r.width / W);
+    const tw = tip.offsetWidth;
+    tip.style.left = (px + 14 + tw > r.width ? px - 14 - tw : px + 14) + "px";
+    tip.style.top = "8px";
+  };
+  hit.addEventListener("pointermove", show);
+  hit.addEventListener("pointerdown", show);
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+}
+
+function renderCards() {
+  const wrap = document.getElementById("cards");
+  for (const x of DATA.ranking.filter((r) => r.series)) {
+    const m = x.metrics;
+    const card = el("article", { class: "card", id: `c-${x.coin}` });
+    card.innerHTML = `
+      <div class="card-head">
+        <span class="rank">#${x.rank}</span>
+        <h3>${x.coin}</h3>
+        <span class="price">${fmtPrice(x.price)} USDT</span>
+        <span class="pill" data-s="${stateKey(x.estado)}">${x.estado}</span>
+      </div>
+      <div class="scores">
+        <div class="score main"><span>Total</span><b>${x.score_total.toFixed(0)}</b></div>
+        <div class="score"><span>Ruptura</span><b>${x.score_breakout.toFixed(0)}</b></div>
+        <div class="score"><span>Continuación</span><b>${x.score_continuacion.toFixed(0)}</b></div>
+      </div>
+      <div class="chart-key">
+        <span><i style="background:var(--accent)"></i>Bollinger 20, 2 · MACD</span>
+        <span><i style="background:var(--signal)"></i>Señal MACD</span>
+        <span><i style="background:var(--amber);height:5px"></i>Squeeze TTM</span>
+        <span><i style="background:var(--ink-2)"></i>Máximo 26 semanas</span>
+      </div>
+      <div class="chart-box"></div>
+      <div class="levels">
+        <span>BB sup <b>${fmtPrice(x.series.up.at(-1))}</b></span>
+        <span>Media 20 <b>${fmtPrice(x.series.mid.at(-1))}</b></span>
+        <span>BB inf <b>${fmtPrice(x.series.lo.at(-1))}</b></span>
+        <span>Máx 52s <b>${fmtPrice(m.resistencia_52s)}</b></span>
+        <span>Semana <b class="${m.cambio_semana_pct >= 0 ? "pos" : "neg"}">${signed(m.cambio_semana_pct)}</b></span>
+      </div>
+      <div class="why">
+        <div><h4>A favor</h4><ul class="plus">${x.razones.map((r) => `<li>${r}</li>`).join("")}</ul></div>
+        <div><h4>Riesgos</h4><ul class="risk">${(x.riesgos.length ? x.riesgos : ["Sin alertas técnicas destacables."]).map((r) => `<li>${r}</li>`).join("")}</ul></div>
+      </div>`;
+    wrap.append(card);
+    drawChart(card.querySelector(".chart-box"), x);
+  }
+}
+
+renderMeta();
+renderTable();
+renderCards();
+</script>

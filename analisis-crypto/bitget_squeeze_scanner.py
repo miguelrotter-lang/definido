@@ -22,6 +22,7 @@ import json
 import math
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -42,6 +43,10 @@ MIN_BARS = MACD_SLOW + MACD_SIG + 2
 # --------------------------------------------------------------------------
 # API Bitget
 # --------------------------------------------------------------------------
+class ApiError(RuntimeError):
+    """Error devuelto por Bitget (parámetros, símbolo...): no tiene sentido reintentar."""
+
+
 def api_get(path, params, retries=4):
     url = f"{API}{path}?{urllib.parse.urlencode(params)}"
     last_err = None
@@ -50,12 +55,18 @@ def api_get(path, params, retries=4):
             req = urllib.request.Request(url, headers={"User-Agent": "squeeze-scanner/1.0"})
             with urllib.request.urlopen(req, timeout=20) as r:
                 body = json.loads(r.read().decode())
-            if body.get("code") != "00000":
-                raise RuntimeError(f"{path}: {body.get('code')} {body.get('msg')}")
-            return body["data"]
+        except urllib.error.HTTPError as e:
+            msg = e.read().decode(errors="replace")[:200]
+            if e.code in (400, 404):
+                raise ApiError(f"{path}: HTTP {e.code} {msg}") from None
+            last_err = f"HTTP {e.code} {msg}"
         except Exception as e:  # noqa: BLE001
             last_err = e
-            time.sleep(1.5 * (attempt + 1))
+        else:
+            if body.get("code") != "00000":
+                raise ApiError(f"{path}: {body.get('code')} {body.get('msg')}")
+            return body["data"]
+        time.sleep(1.5 * (attempt + 1))
     raise RuntimeError(f"Fallo en {url}: {last_err}")
 
 
@@ -69,25 +80,87 @@ def fetch_tickers():
     return {d["symbol"]: d for d in data}
 
 
+GRANULARITY = None       # se fija en la primera petición que funcione ("1Wutc" o "1W")
+TARGET_BARS = 160        # ~3 años de velas semanales
+
+
+def _add_rows(candles, rows):
+    for r in rows or []:
+        ts = int(r[0])
+        candles[ts] = [ts] + [float(x) for x in r[1:7]]
+
+
 def fetch_weekly(symbol):
-    """Devuelve velas semanales ascendentes: [ts, o, h, l, c, vol_base, vol_usdt]."""
-    rows = None
-    for gran in ("1Wutc", "1W"):
+    """Devuelve velas semanales ascendentes: [ts, o, h, l, c, vol_base, vol_usdt].
+
+    /candles solo da el tramo reciente; el resto se pagina hacia atrás con
+    /history-candles (máx. 200 por petición) usando endTime.
+    """
+    global GRANULARITY
+    candles = {}
+    grans = [GRANULARITY] if GRANULARITY else ["1Wutc", "1W"]
+    for gran in grans:
         try:
             rows = api_get("/api/v2/mix/market/candles", {
-                "symbol": symbol, "productType": PRODUCT,
-                "granularity": gran, "limit": 1000,
-            })
+                "symbol": symbol, "productType": PRODUCT, "granularity": gran, "limit": 1000,
+            }, retries=2)
+            GRANULARITY = gran
+            _add_rows(candles, rows)
             break
         except RuntimeError:
             continue
-    if rows is None:
+    if not GRANULARITY:
         return []
-    candles = {}
-    for r in rows:
-        ts = int(r[0])
-        candles[ts] = [ts] + [float(x) for x in r[1:7]]
+
+    for _ in range(25):
+        if len(candles) >= TARGET_BARS:
+            break
+        end = (min(candles) - 1) if candles else int(time.time() * 1000)
+        try:
+            rows = api_get("/api/v2/mix/market/history-candles", {
+                "symbol": symbol, "productType": PRODUCT, "granularity": GRANULARITY,
+                "endTime": end, "limit": 200,
+            }, retries=2)
+        except RuntimeError:
+            # algunas granularidades exigen ventana startTime-endTime acotada
+            try:
+                rows = api_get("/api/v2/mix/market/history-candles", {
+                    "symbol": symbol, "productType": PRODUCT, "granularity": GRANULARITY,
+                    "startTime": end - 89 * 24 * 3600 * 1000, "endTime": end, "limit": 200,
+                }, retries=2)
+            except RuntimeError:
+                break
+        before = len(candles)
+        _add_rows(candles, rows)
+        if len(candles) == before:
+            break
+        time.sleep(0.06)
     return [candles[k] for k in sorted(candles)]
+
+
+def probe(symbol="BTCUSDT"):
+    """Diagnóstico: cuántas velas devuelve cada variante del API."""
+    now = int(time.time() * 1000)
+    tests = [
+        ("candles 1Wutc", "/api/v2/mix/market/candles", {"granularity": "1Wutc", "limit": 1000}),
+        ("candles 1W", "/api/v2/mix/market/candles", {"granularity": "1W", "limit": 1000}),
+        ("candles 1W lim200", "/api/v2/mix/market/candles", {"granularity": "1W", "limit": 200}),
+        ("history 1W", "/api/v2/mix/market/history-candles", {"granularity": "1W", "endTime": now, "limit": 200}),
+        ("history 1Wutc", "/api/v2/mix/market/history-candles", {"granularity": "1Wutc", "endTime": now, "limit": 200}),
+    ]
+    for name, path, extra in tests:
+        try:
+            rows = api_get(path, {"symbol": symbol, "productType": PRODUCT, **extra}, retries=1)
+            span = ""
+            if rows:
+                ts = sorted(int(r[0]) for r in rows)
+                f = lambda t: datetime.fromtimestamp(t / 1000, timezone.utc).strftime("%Y-%m-%d %a %H:%M")  # noqa: E731
+                span = f"{f(ts[0])} → {f(ts[-1])}"
+            print(f"  {name:<20} {len(rows or []):>4} velas  {span}", file=sys.stderr)
+        except RuntimeError as e:
+            print(f"  {name:<20} ERROR {e}", file=sys.stderr)
+    full = fetch_weekly(symbol)
+    print(f"  fetch_weekly({symbol}) = {len(full)} velas con {GRANULARITY}", file=sys.stderr)
 
 
 # --------------------------------------------------------------------------
@@ -400,7 +473,10 @@ def main():
     tickers = fetch_tickers()
     print(f"{len(contracts)} contratos USDT-M activos en Bitget", file=sys.stderr)
 
-    results, skipped = [], 0
+    print("Diagnóstico API (BTCUSDT):", file=sys.stderr)
+    probe("BTCUSDT")
+
+    results, skipped, short, errors = [], 0, [], 0
     for idx, ct in enumerate(contracts, 1):
         sym = ct["symbol"]
         tk = tickers.get(sym, {})
@@ -413,7 +489,10 @@ def main():
             res = analyse(sym, candles, tk, now_ms)
             if res:
                 results.append(res)
+            else:
+                short.append((sym, len(candles)))
         except Exception as e:  # noqa: BLE001
+            errors += 1
             print(f"  {sym}: {e}", file=sys.stderr)
         if idx % 50 == 0:
             print(f"  {idx}/{len(contracts)}", file=sys.stderr)
@@ -432,6 +511,8 @@ def main():
         "total_contratos": len(contracts),
         "descartados_liquidez": skipped,
         "analizados": len(results),
+        "historial_insuficiente": len(short),
+        "errores": errors,
         "con_contexto_squeeze": len(ranked),
         "ranking": ranked[:args.top],
         "resto": [{k: x[k] for k in ("symbol", "score_total", "score_breakout",
@@ -447,7 +528,10 @@ def main():
         print(f"{n_:>3} {x['coin']:<12}{x['score_total']:>6}{x['score_breakout']:>6}"
               f"{x['score_continuacion']:>6}  {m['pct_b']:<5} {m['bandwidth_min_8s_percentil']:>6}"
               f"  {'↑' if m['macd_sobre_senal'] else '↓'}{'+' if m['macd_sobre_cero'] else '-'}   {x['estado']}")
-    print(f"\nGuardado en {args.out}", file=sys.stderr)
+    print(f"\nAnalizados {len(results)} · historial insuficiente {len(short)} · errores {errors}", file=sys.stderr)
+    if short:
+        print("  ej. sin historial suficiente: " + ", ".join(f"{a}({b})" for a, b in short[:15]), file=sys.stderr)
+    print(f"Guardado en {args.out}", file=sys.stderr)
 
 
 if __name__ == "__main__":
