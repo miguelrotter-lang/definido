@@ -86,6 +86,7 @@ header { display: grid; gap: 14px; }
 .pill[data-s="pre"] { background: var(--amber-soft); color: var(--amber); }
 .pill[data-s="comp"] { background: var(--muted-soft); color: var(--ink-2); }
 .pill[data-s="trend"] { background: var(--muted-soft); color: var(--ink-2); }
+.pill[data-s="late"] { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 .pill[data-s="neutral"] { background: var(--down-soft); color: var(--down); }
 
 section { display: grid; gap: 14px; min-width: 0; }
@@ -99,7 +100,7 @@ section { display: grid; gap: 14px; min-width: 0; }
 .sort button:focus-visible, a:focus-visible, .row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .table-box { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
-table { border-collapse: collapse; width: 100%; min-width: 820px; font-size: 13.5px; }
+table { border-collapse: collapse; width: 100%; min-width: 900px; font-size: 13.5px; }
 th, td { padding: 9px 12px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
 th { font: 600 11px var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: var(--surface); position: sticky; top: 0; }
 td.l, th.l { text-align: left; }
@@ -186,7 +187,7 @@ td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
         <thead>
           <tr>
             <th>#</th><th class="l">Moneda</th><th class="l">Total</th><th>Ruptura</th><th>Contin.</th>
-            <th class="l">Estado</th><th>%B</th><th>Ancho BB pctl</th><th>MACD</th><th>vs máx 26s</th><th>4 sem</th><th>Vol 24h</th>
+            <th class="l">Estado</th><th>%B</th><th>Ancho BB pctl</th><th>MACD</th><th>vs máx 26s</th><th>Desde squeeze</th><th>Semana</th><th>Vol 24h</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -232,7 +233,7 @@ const DATA = /*__DATA__*/null;
 
 const STATES = [
   ["Ruptura confirmada", "conf"], ["Rompiendo ahora", "now"], ["Pre-ruptura", "pre"],
-  ["Compresión", "comp"], ["Tendencia alcista", "trend"], ["Neutral", "neutral"],
+  ["Compresión", "comp"], ["Ya disparada", "late"], ["Tendencia alcista", "trend"], ["Neutral", "neutral"],
 ];
 const stateKey = (s) => (STATES.find(([p]) => s.startsWith(p)) || [0, "comp"])[1];
 const el = (tag, attrs = {}, html = "") => {
@@ -259,7 +260,7 @@ function renderMeta() {
     <span>Analizados <b>${DATA.analizados}</b> (vol 24h ≥ ${fmtVol(DATA.parametros.min_vol_24h_usdt)})</span>
     <span>Con squeeze reciente <b>${DATA.con_contexto_squeeze}</b></span>`;
   const s = document.getElementById("states");
-  for (const [label, k] of STATES.slice(0, 5)) s.append(el("span", { class: "pill", "data-s": k }, label));
+  for (const [label, k] of STATES.slice(0, 6)) s.append(el("span", { class: "pill", "data-s": k }, label));
 }
 
 let sortKey = "score_total";
@@ -283,7 +284,8 @@ function renderTable() {
       <td class="num">${m.bandwidth_min_8s_percentil.toFixed(0)}</td>
       <td class="num ${m.macd_sobre_senal ? "pos" : "neg"}">${macd}</td>
       <td class="num ${m.dist_resistencia_pct >= 0 ? "pos" : ""}">${signed(m.dist_resistencia_pct)}</td>
-      <td class="num ${m.cambio_4s_pct >= 0 ? "pos" : "neg"}">${signed(m.cambio_4s_pct, 0)}</td>
+      <td class="num">${signed(m.subida_desde_squeeze_pct, 0)}</td>
+      <td class="num ${m.cambio_semana_pct >= 0 ? "pos" : "neg"}">${signed(m.cambio_semana_pct, 1)}</td>
       <td class="num">${fmtVol(x.vol24h_usdt)}</td>`;
     tb.append(tr);
   });

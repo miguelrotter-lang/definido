@@ -51,6 +51,9 @@ def razones(x):
         out.append("MACD por encima de cero: momentum alcista de fondo.")
     if m["vol_ratio"] >= 1.5:
         out.append(f"Volumen {m['vol_ratio']:.1f}× la media de 20 semanas.")
+    g = m["subida_desde_squeeze_pct"]
+    if g < 30:
+        out.append(f"Aún cerca del punto de compresión ({g:+.0f}%): la ruptura está temprana.")
     return out
 
 
@@ -65,6 +68,13 @@ def riesgos(x):
         out.append(f"Extendido: {m['ext_sobre_media_pct']:.0f}% sobre la media de 20. Retroceso probable antes de seguir.")
     if m["sobre_banda_sup_ahora"] and not m["sobre_banda_sup_cierre"]:
         out.append("La ruptura no vale hasta el cierre semanal (domingo 23:59 UTC).")
+    g, dd = m["subida_desde_squeeze_pct"], m["retroceso_desde_max_pct"]
+    if g >= 50:
+        out.append(f"Ya subió {g:.0f}% desde el squeeze ({m['semanas_desde_compresion']} semanas): entrar ahora es perseguir.")
+    if dd <= -20:
+        out.append(f"Devuelve {abs(dd):.0f}% desde el máximo tras el squeeze ({m['max_desde_squeeze']:.6g}): hubo rechazo.")
+    if m["cambio_semana_pct"] <= -8:
+        out.append(f"Semana en curso {m['cambio_semana_pct']:.0f}%: el cierre semanal puede invalidar la ruptura.")
     if m["vol_ratio"] < 0.9:
         out.append("Volumen por debajo de la media: ruptura sin respaldo.")
     if x["weeks_history"] < 60:
