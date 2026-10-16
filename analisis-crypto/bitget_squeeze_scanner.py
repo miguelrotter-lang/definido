@@ -41,7 +41,7 @@ SQZ_POINT_WINDOW = 12    # semanas donde buscar el punto de máxima compresión
 MIN_BARS = MACD_SLOW + MACD_SIG + 2
 
 # Bitget lista también acciones, ETFs y materias primas como perpetuos USDT.
-# El estudio es solo de cryptos, así que se excluyen.
+# El estudio es solo de cryptos, así que se excluyen (respaldo si falta isRwa).
 NON_CRYPTO = {
     "AAPL", "MSFT", "NVDA", "TSLA", "META", "AMZN", "GOOGL", "GOOG", "NFLX", "COIN",
     "MSTR", "PLTR", "ORCL", "AMD", "INTC", "HOOD", "CRCL", "AVGO", "MU", "TSM", "BABA",
@@ -54,14 +54,19 @@ NON_CRYPTO = {
 }
 
 
+TOKENIZED_GOLD = {"PAXG", "XAUT"}
+
+
 def is_non_crypto(ct):
-    if ct.get("baseCoin", "").upper() in NON_CRYPTO:
+    """Bitget marca acciones/ETFs/materias primas con isRwa=YES.
+    La lista manual solo se usa si el API deja de enviar ese campo
+    (DIAUSDT, por ejemplo, es el token DIA; el ETF es DIASTOCKUSDT)."""
+    base = ct.get("baseCoin", "").upper()
+    if base in TOKENIZED_GOLD:
         return True
-    for k, v in ct.items():
-        kl = k.lower()
-        if ("rwa" in kl or "stock" in kl) and str(v).lower() in ("yes", "true", "1"):
-            return True
-    return False
+    if "isRwa" in ct:
+        return str(ct["isRwa"]).upper() == "YES"
+    return base in NON_CRYPTO
 
 
 # --------------------------------------------------------------------------
